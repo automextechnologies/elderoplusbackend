@@ -16,14 +16,14 @@ export default async function handler(req, res) {
 
   try {
     const { userId } = verifyToken(req);
-    const user = await User.findById(userId).select('startDate');
+    const user = await User.findById(userId).populate('batchId').select('startDate batchId');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const logs = await TaskLog.find({ userId }).sort({ dayNumber: 1 });
 
     const REQUIRED = ['yoga', 'meditation', 'water', 'protein'];
     const now = new Date();
-    const startDate = new Date(user.startDate);
+    const startDate = new Date(user.batchId ? user.batchId.startDate : user.startDate);
 
     const days = Array.from({ length: 30 }, (_, i) => {
       const dayNumber = i + 1;
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       };
     });
 
-    return res.status(200).json({ days, startDate: user.startDate });
+    return res.status(200).json({ days, startDate });
   } catch (err) {
     if (err.message === 'No token' || err.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Unauthorized' });

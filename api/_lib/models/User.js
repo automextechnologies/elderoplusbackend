@@ -10,6 +10,7 @@ const UserSchema = new mongoose.Schema({
   heightCm:        { type: Number },
   weightKg:        { type: Number },
   startDate:       { type: Date, default: Date.now },
+  batchId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Batch', default: null },
   pushSubscription: { type: mongoose.Schema.Types.Mixed, default: null },
   notificationsSentToday: [{
     taskId: String,

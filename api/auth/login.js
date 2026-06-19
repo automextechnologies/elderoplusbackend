@@ -16,13 +16,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Phone and password are required' });
     }
 
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ phone }).populate('batchId');
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = signToken({ userId: user._id.toString() });
+
+    const effectiveStartDate = user.batchId ? user.batchId.startDate : user.startDate;
+    const batchName = user.batchId ? user.batchId.name : null;
 
     res.setHeader('Set-Cookie', `token=${token}; HttpOnly; Path=/; SameSite=Strict; Max-Age=2592000`);
     return res.status(200).json({
@@ -35,7 +38,9 @@ export default async function handler(req, res) {
         gender: user.gender,
         heightCm: user.heightCm,
         weightKg: user.weightKg,
-        startDate: user.startDate,
+        startDate: effectiveStartDate,
+        batchName,
+        batchId: user.batchId ? user.batchId._id : null,
       },
       token,
     });

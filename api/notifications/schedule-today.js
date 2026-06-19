@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
   try {
     const { userId } = verifyToken(req);
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).populate('batchId');
 
     if (!user?.pushSubscription) {
       return res.status(200).json({ sent: 0, reason: 'no-subscription', futureReminders: [] });
@@ -56,7 +56,8 @@ export default async function handler(req, res) {
       userId, date: todayDate, completed: true,
     }).distinct('taskId');
 
-    const currentDayNumber = Math.floor((now - user.startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const effectiveStartDate = user.batchId ? user.batchId.startDate : user.startDate;
+    const currentDayNumber = Math.floor((now - effectiveStartDate) / (1000 * 60 * 60 * 24)) + 1;
     const dynamicSchedule = [...SCHEDULE];
 
     if (currentDayNumber > 0 && currentDayNumber % 7 === 0 && currentDayNumber <= 28) {

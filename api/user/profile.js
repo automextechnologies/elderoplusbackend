@@ -12,9 +12,12 @@ export default async function handler(req, res) {
     const { userId } = verifyToken(req);
 
     if (req.method === 'GET') {
-      const user = await User.findById(userId).select('-passwordHash -pushSubscription');
+      const user = await User.findById(userId).populate('batchId').select('-passwordHash -pushSubscription');
       if (!user) return res.status(404).json({ error: 'User not found' });
-      return res.status(200).json({ user });
+      const userObj = user.toObject();
+      userObj.startDate = user.batchId ? user.batchId.startDate : user.startDate;
+      userObj.batchName = user.batchId ? user.batchId.name : null;
+      return res.status(200).json({ user: userObj });
     }
 
     if (req.method === 'PUT') {
@@ -23,8 +26,12 @@ export default async function handler(req, res) {
         userId,
         { $set: { name, age, gender, heightCm, weightKg } },
         { new: true }
-      ).select('-passwordHash -pushSubscription');
-      return res.status(200).json({ user: updated });
+      ).populate('batchId').select('-passwordHash -pushSubscription');
+      if (!updated) return res.status(404).json({ error: 'User not found' });
+      const userObj = updated.toObject();
+      userObj.startDate = updated.batchId ? updated.batchId.startDate : updated.startDate;
+      userObj.batchName = updated.batchId ? updated.batchId.name : null;
+      return res.status(200).json({ user: userObj });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
