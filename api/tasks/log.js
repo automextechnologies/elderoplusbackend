@@ -1,5 +1,6 @@
 import { connectDB } from '../_lib/mongodb.js';
 import TaskLog from '../_lib/models/TaskLog.js';
+import User from '../_lib/models/User.js';
 import { verifyToken } from '../_lib/auth.js';
 import { handleCors } from '../_lib/cors.js';
 
@@ -19,6 +20,20 @@ export default async function handler(req, res) {
 
     if (!dayNumber || !taskId) {
       return res.status(400).json({ error: 'dayNumber and taskId are required' });
+    }
+
+    const user = await User.findById(userId).populate('batchId');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const startDate = new Date(user.batchId ? user.batchId.startDate : user.startDate);
+    const unlockDate = new Date(startDate);
+    unlockDate.setDate(unlockDate.getDate() + (dayNumber - 1));
+    unlockDate.setHours(1, 0, 0, 0);
+
+    if (new Date() < unlockDate) {
+      return res.status(400).json({ error: `Day ${dayNumber} is locked` });
     }
 
     const updateDoc = {

@@ -11,6 +11,21 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Global API request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const logMsg = `[API Hit] ${req.method} ${req.originalUrl || req.url} - Status: ${res.statusCode} - Duration: ${duration}ms`;
+    if (res.statusCode >= 400) {
+      console.error(`${logMsg} - ERROR/WARNING`);
+    } else {
+      console.log(logMsg);
+    }
+  });
+  next();
+});
+
 // Helper to wrap Vercel handlers for Express
 const vercelToExpress = (handler) => async (req, res) => {
   try {

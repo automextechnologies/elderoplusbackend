@@ -1,5 +1,7 @@
 import { connectDB } from '../_lib/mongodb.js';
 import User from '../_lib/models/User.js';
+import Batch from '../_lib/models/Batch.js';
+import TaskLog from '../_lib/models/TaskLog.js';
 import bcrypt from 'bcryptjs';
 import { verifyToken } from '../_lib/auth.js';
 import { handleCors } from '../_lib/cors.js';
@@ -42,6 +44,21 @@ export default async function handler(req, res) {
 
       const passwordHash = await bcrypt.hash(password, 10);
 
+      if (!batchId) {
+        return res.status(400).json({ error: 'Assigning the customer to a batch or class is required' });
+      }
+
+      const batch = await Batch.findById(batchId);
+      if (!batch) {
+        return res.status(400).json({ error: 'Selected batch does not exist' });
+      }
+
+      if (new Date(batch.startDate) <= new Date()) {
+        return res.status(400).json({ error: 'Cannot add or create a customer in a batch after its start date has passed' });
+      }
+
+      const finalStartDate = batch.startDate;
+
       const customer = await User.create({
         name,
         phone,
@@ -51,8 +68,9 @@ export default async function handler(req, res) {
         gender,
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        batchId: batchId || null,
+        startDate: finalStartDate,
+        joinedDate: new Date(),
+        batchId: batchId,
       });
 
       await customer.populate('batchId');
@@ -94,8 +112,24 @@ export default async function handler(req, res) {
       customerToUpdate.gender = gender !== undefined ? gender : customerToUpdate.gender;
       customerToUpdate.heightCm = heightCm !== undefined ? (heightCm === '' ? undefined : Number(heightCm)) : customerToUpdate.heightCm;
       customerToUpdate.weightKg = weightKg !== undefined ? (weightKg === '' ? undefined : Number(weightKg)) : customerToUpdate.weightKg;
-      if (startDate) customerToUpdate.startDate = new Date(startDate);
-      if (batchId !== undefined) customerToUpdate.batchId = batchId || null;
+      if (batchId !== undefined) {
+        if (!batchId) {
+          return res.status(400).json({ error: 'Assigning the customer to a batch or class is required' });
+        }
+        if (batchId.toString() !== (customerToUpdate.batchId || '').toString()) {
+          const batch = await Batch.findById(batchId);
+          if (!batch) {
+            return res.status(400).json({ error: 'Selected batch does not exist' });
+          }
+          if (new Date(batch.startDate) <= new Date()) {
+            return res.status(400).json({ error: 'Cannot add a customer to a batch after its start date has passed' });
+          }
+          customerToUpdate.batchId = batchId;
+          customerToUpdate.startDate = batch.startDate;
+        }
+      } else if (startDate) {
+        customerToUpdate.startDate = new Date(startDate);
+      }
 
       await customerToUpdate.save();
       await customerToUpdate.populate('batchId');
@@ -104,6 +138,27 @@ export default async function handler(req, res) {
       delete updatedObj.passwordHash;
 
       return res.status(200).json({ customer: updatedObj });
+    }
+
+    // 5. Handle DELETE (Delete customer and their logs)
+    if (req.method === 'DELETE') {
+      const { id } = req.query;
+
+      if (!id) {
+        return res.status(400).json({ error: 'Customer ID is required' });
+      }
+
+      const customerToDelete = await User.findById(id);
+      if (!customerToDelete || customerToDelete.role !== 'customer') {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+
+      // Delete user's task logs first
+      await TaskLog.deleteMany({ userId: customerToDelete._id });
+      // Delete the customer
+      await User.deleteOne({ _id: customerToDelete._id });
+
+      return res.status(200).json({ message: 'Customer and all associated logs deleted successfully' });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

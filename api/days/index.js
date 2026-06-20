@@ -32,9 +32,7 @@ export default async function handler(req, res) {
       unlockDate.setHours(1, 0, 0, 0);
 
       const isUnlocked = unlockDate <= now;
-      const isToday =
-        formatDate(unlockDate) === formatDate(now) ||
-        (dayNumber === 1 && i === 0);
+      const isToday = isUnlocked && formatDate(unlockDate) === formatDate(now);
 
       const dayLogs = logs.filter((l) => l.dayNumber === dayNumber);
       const completedTasks = dayLogs.filter((l) => l.completed).map((l) => l.taskId);

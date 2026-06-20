@@ -42,6 +42,38 @@ export default async function handler(req, res) {
       return res.status(201).json({ batch: { ...newBatch.toObject(), customerCount: 0 } });
     }
 
+    if (req.method === 'PUT') {
+      const { id, name, startDate } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: 'Batch ID is required' });
+      }
+      if (!name || !startDate) {
+        return res.status(400).json({ error: 'Batch Name and Start Date are required' });
+      }
+
+      const batchToUpdate = await Batch.findById(id);
+      if (!batchToUpdate) {
+        return res.status(404).json({ error: 'Batch not found' });
+      }
+
+      const oldStartDate = batchToUpdate.startDate;
+      batchToUpdate.name = name;
+      batchToUpdate.startDate = new Date(startDate);
+
+      await batchToUpdate.save();
+
+      // If the start date changed, update all customers' start dates in this batch
+      if (new Date(oldStartDate).getTime() !== new Date(startDate).getTime()) {
+        await User.updateMany(
+          { batchId: batchToUpdate._id, role: 'customer' },
+          { startDate: new Date(startDate) }
+        );
+      }
+
+      const count = await User.countDocuments({ batchId: batchToUpdate._id, role: 'customer' });
+      return res.status(200).json({ batch: { ...batchToUpdate.toObject(), customerCount: count } });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     if (err.message === 'No token' || err.name === 'JsonWebTokenError') {
