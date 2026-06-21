@@ -100,7 +100,7 @@ app.post('/api/auth/login', vercelToExpress(loginHandler));
 app.all('/api/admin/customers', vercelToExpress(adminCustomersHandler));
 app.all('/api/admin/batches', vercelToExpress(adminBatchesHandler));
 app.all('/api/admin/customer-tasks', vercelToExpress(adminCustomerTasksHandler));
-app.post('/api/admin/test-notification', vercelToExpress(adminTestNotificationHandler));
+app.all('/api/admin/test-notification', vercelToExpress(adminTestNotificationHandler));
 
 // User Routes
 app.all('/api/user/profile', vercelToExpress(userProfileHandler));
