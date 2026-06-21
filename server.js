@@ -51,6 +51,7 @@ import scheduleTodayHandler from './api/notifications/schedule-today.js';
 import adminCustomersHandler from './api/admin/customers.js';
 import adminBatchesHandler from './api/admin/batches.js';
 import adminCustomerTasksHandler from './api/admin/customer-tasks.js';
+import adminTestNotificationHandler from './api/admin/test-notification.js';
 
 import bcrypt from 'bcryptjs';
 import User from './api/_lib/models/User.js';
@@ -99,6 +100,7 @@ app.post('/api/auth/login', vercelToExpress(loginHandler));
 app.all('/api/admin/customers', vercelToExpress(adminCustomersHandler));
 app.all('/api/admin/batches', vercelToExpress(adminBatchesHandler));
 app.all('/api/admin/customer-tasks', vercelToExpress(adminCustomerTasksHandler));
+app.post('/api/admin/test-notification', vercelToExpress(adminTestNotificationHandler));
 
 // User Routes
 app.all('/api/user/profile', vercelToExpress(userProfileHandler));
