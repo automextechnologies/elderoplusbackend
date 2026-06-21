@@ -45,13 +45,9 @@ import daysIdHandler from './api/days/[dayNumber].js';
 import tasksLogHandler from './api/tasks/log.js';
 import tasksIdHandler from './api/tasks/[id].js';
 import userProfileHandler from './api/user/profile.js';
-import subscribeHandler from './api/notifications/subscribe.js';
-import unsubscribeHandler from './api/notifications/unsubscribe.js';
-import scheduleTodayHandler from './api/notifications/schedule-today.js';
 import adminCustomersHandler from './api/admin/customers.js';
 import adminBatchesHandler from './api/admin/batches.js';
 import adminCustomerTasksHandler from './api/admin/customer-tasks.js';
-import adminTestNotificationHandler from './api/admin/test-notification.js';
 
 import bcrypt from 'bcryptjs';
 import User from './api/_lib/models/User.js';
@@ -100,7 +96,6 @@ app.post('/api/auth/login', vercelToExpress(loginHandler));
 app.all('/api/admin/customers', vercelToExpress(adminCustomersHandler));
 app.all('/api/admin/batches', vercelToExpress(adminBatchesHandler));
 app.all('/api/admin/customer-tasks', vercelToExpress(adminCustomerTasksHandler));
-app.all('/api/admin/test-notification', vercelToExpress(adminTestNotificationHandler));
 
 // User Routes
 app.all('/api/user/profile', vercelToExpress(userProfileHandler));
@@ -120,10 +115,7 @@ app.all('/api/tasks/:id', (req, res) => {
   return vercelToExpress(tasksIdHandler)(req, res);
 });
 
-// Notifications Routes
-app.post('/api/notifications/subscribe', vercelToExpress(subscribeHandler));
-app.delete('/api/notifications/unsubscribe', vercelToExpress(unsubscribeHandler));
-app.post('/api/notifications/schedule-today', vercelToExpress(scheduleTodayHandler));
+
 
 // Default route for undefined endpoints
 app.use((req, res) => {

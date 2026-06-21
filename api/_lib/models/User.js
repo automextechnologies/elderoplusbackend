@@ -12,12 +12,6 @@ const UserSchema = new mongoose.Schema({
   startDate:       { type: Date, default: Date.now },
   joinedDate:      { type: Date, default: Date.now },
   batchId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Batch', default: null },
-  pushSubscription: { type: mongoose.Schema.Types.Mixed, default: null },
-  notificationsSentToday: [{
-    taskId: String,
-    hour: Number,
-    date: String,
-  }],
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
