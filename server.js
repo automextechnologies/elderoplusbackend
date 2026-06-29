@@ -48,6 +48,9 @@ import userProfileHandler from './api/user/profile.js';
 import adminCustomersHandler from './api/admin/customers.js';
 import adminBatchesHandler from './api/admin/batches.js';
 import adminCustomerTasksHandler from './api/admin/customer-tasks.js';
+import fcmSubscribeHandler from './api/notifications/fcm-subscribe.js';
+import fcmUnsubscribeHandler from './api/notifications/fcm-unsubscribe.js';
+import { firebaseAdmin } from './api/_lib/firebase.js';
 
 import bcrypt from 'bcryptjs';
 import User from './api/_lib/models/User.js';
@@ -114,7 +117,9 @@ app.all('/api/tasks/:id', (req, res) => {
   req.query = { ...req.query, id: req.params.id };
   return vercelToExpress(tasksIdHandler)(req, res);
 });
-
+// Notifications Routes
+app.post('/api/notifications/fcm-subscribe', vercelToExpress(fcmSubscribeHandler));
+app.post('/api/notifications/fcm-unsubscribe', vercelToExpress(fcmUnsubscribeHandler));
 
 
 // Default route for undefined endpoints
@@ -122,10 +127,72 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
+async function startWaterReminderScheduler() {
+  // Check every 2 minutes for users who need a water reminder
+  setInterval(async () => {
+    try {
+      await connectDB();
+      const now = new Date();
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+      // Find all users who have an FCM token AND either lastWaterNotificationSent is null or it was sent >= 2 hours ago
+      const users = await User.find({
+        role: 'customer',
+        fcmToken: { $ne: null },
+        $or: [
+          { lastWaterNotificationSent: null },
+          { lastWaterNotificationSent: { $lte: twoHoursAgo } }
+        ]
+      });
+
+      if (users.length === 0) return;
+
+      console.log(`[Scheduler] Found ${users.length} customer(s) to send water intake reminders to.`);
+
+      for (const user of users) {
+        if (!firebaseAdmin) {
+          console.warn(`[Scheduler] Skipping user ${user.name} (${user._id}) because Firebase Admin is not initialized.`);
+          user.lastWaterNotificationSent = now;
+          await user.save();
+          continue;
+        }
+
+        try {
+          const message = {
+            notification: {
+              title: 'Water Intake Reminder',
+              body: 'Time to drink water! Keep your hydration target on track.',
+            },
+            data: {
+              url: '/'
+            },
+            token: user.fcmToken,
+          };
+
+          await firebaseAdmin.messaging().send(message);
+          console.log(`[Scheduler] Successfully sent FCM reminder to ${user.name}`);
+        } catch (fcmErr) {
+          console.error(`[Scheduler] Failed to send FCM reminder to user ${user.name}:`, fcmErr.message);
+          if (fcmErr.code === 'messaging/registration-token-not-registered' || fcmErr.code === 'messaging/invalid-argument') {
+            console.log(`[Scheduler] Clearing invalid token for user ${user.name}`);
+            user.fcmToken = null;
+          }
+        }
+
+        user.lastWaterNotificationSent = now;
+        await user.save();
+      }
+    } catch (err) {
+      console.error('[Scheduler] Error running water reminder check:', err);
+    }
+  }, 120000); // 2 minutes
+}
+
 connectDB().then(async () => {
   await seedDefaultUser();
   app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);
+    startWaterReminderScheduler();
   });
 }).catch(err => {
   console.error('Failed to connect to MongoDB', err);

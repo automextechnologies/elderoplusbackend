@@ -12,6 +12,8 @@ const UserSchema = new mongoose.Schema({
   startDate:       { type: Date, default: Date.now },
   joinedDate:      { type: Date, default: Date.now },
   batchId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Batch', default: null },
+  fcmToken:        { type: String, default: null },
+  lastWaterNotificationSent: { type: Date, default: null },
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
