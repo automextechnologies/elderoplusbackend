@@ -14,6 +14,7 @@ const UserSchema = new mongoose.Schema({
   batchId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Batch', default: null },
   fcmToken:        { type: String, default: null },
   lastWaterNotificationSent: { type: Date, default: null },
+  pushSubscription:  { type: mongoose.Schema.Types.Mixed, default: null },
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

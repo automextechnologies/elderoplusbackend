@@ -48,8 +48,12 @@ import userProfileHandler from './api/user/profile.js';
 import adminCustomersHandler from './api/admin/customers.js';
 import adminBatchesHandler from './api/admin/batches.js';
 import adminCustomerTasksHandler from './api/admin/customer-tasks.js';
+import adminTestNotificationHandler from './api/admin/test-notification.js';
 import fcmSubscribeHandler from './api/notifications/fcm-subscribe.js';
 import fcmUnsubscribeHandler from './api/notifications/fcm-unsubscribe.js';
+import notificationsSubscribeHandler from './api/notifications/subscribe.js';
+import notificationsUnsubscribeHandler from './api/notifications/unsubscribe.js';
+import notificationsScheduleTodayHandler from './api/notifications/schedule-today.js';
 import { firebaseAdmin } from './api/_lib/firebase.js';
 
 import bcrypt from 'bcryptjs';
@@ -99,6 +103,7 @@ app.post('/api/auth/login', vercelToExpress(loginHandler));
 app.all('/api/admin/customers', vercelToExpress(adminCustomersHandler));
 app.all('/api/admin/batches', vercelToExpress(adminBatchesHandler));
 app.all('/api/admin/customer-tasks', vercelToExpress(adminCustomerTasksHandler));
+app.all('/api/admin/test-notification', vercelToExpress(adminTestNotificationHandler));
 
 // User Routes
 app.all('/api/user/profile', vercelToExpress(userProfileHandler));
@@ -120,6 +125,9 @@ app.all('/api/tasks/:id', (req, res) => {
 // Notifications Routes
 app.post('/api/notifications/fcm-subscribe', vercelToExpress(fcmSubscribeHandler));
 app.post('/api/notifications/fcm-unsubscribe', vercelToExpress(fcmUnsubscribeHandler));
+app.post('/api/notifications/subscribe', vercelToExpress(notificationsSubscribeHandler));
+app.post('/api/notifications/unsubscribe', vercelToExpress(notificationsUnsubscribeHandler));
+app.post('/api/notifications/schedule-today', vercelToExpress(notificationsScheduleTodayHandler));
 
 
 // Default route for undefined endpoints
@@ -188,12 +196,21 @@ async function startWaterReminderScheduler() {
   }, 120000); // 2 minutes
 }
 
+import fs from 'fs';
+
+const logFile = './debug.log';
+
 connectDB().then(async () => {
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] MongoDB connected successfully.\n`);
   await seedDefaultUser();
-  app.listen(PORT, () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    const msg = `Backend server running on http://localhost:${PORT}`;
+    console.log(msg);
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
     startWaterReminderScheduler();
   });
 }).catch(err => {
-  console.error('Failed to connect to MongoDB', err);
+  const errMsg = `Failed to connect to MongoDB: ${err.message}\nStack: ${err.stack}`;
+  console.error(errMsg);
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${errMsg}\n`);
 });
