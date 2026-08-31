@@ -27,13 +27,21 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const startDate = new Date(user.batchId ? user.batchId.startDate : user.startDate);
-    const unlockDate = new Date(startDate);
-    unlockDate.setDate(unlockDate.getDate() + (dayNumber - 1));
-    unlockDate.setHours(1, 0, 0, 0);
+    const isStarted = user.batchId ? true : !!user.challengeStarted;
+    if (!isStarted) {
+      return res.status(400).json({ error: 'Challenge has not started yet' });
+    }
 
-    if (new Date() < unlockDate) {
-      return res.status(400).json({ error: `Day ${dayNumber} is locked` });
+    const start = user.batchId ? user.batchId.startDate : user.startDate;
+    if (start) {
+      const startDate = new Date(start);
+      const unlockDate = new Date(startDate);
+      unlockDate.setDate(unlockDate.getDate() + (dayNumber - 1));
+      unlockDate.setHours(0, 0, 0, 0);
+
+      if (new Date() < unlockDate) {
+        return res.status(400).json({ error: `Day ${dayNumber} is locked` });
+      }
     }
 
     const updateDoc = {

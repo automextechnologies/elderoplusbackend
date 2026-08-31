@@ -57,7 +57,9 @@ export default async function handler(req, res) {
     }).distinct('taskId');
 
     const effectiveStartDate = user.batchId ? user.batchId.startDate : user.startDate;
-    const currentDayNumber = Math.floor((now - effectiveStartDate) / (1000 * 60 * 60 * 24)) + 1;
+    const currentDayNumber = effectiveStartDate
+      ? Math.floor((now - new Date(effectiveStartDate)) / (1000 * 60 * 60 * 24)) + 1
+      : 1;
     const dynamicSchedule = [...SCHEDULE];
 
     if (currentDayNumber > 0 && currentDayNumber % 7 === 0 && currentDayNumber <= 28) {

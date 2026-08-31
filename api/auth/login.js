@@ -16,10 +16,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Phone and password are required' });
     }
 
-    const user = await User.findOne({ phone }).populate('batchId');
+    const cleanPhone = phone.toString().trim();
+    const cleanPassword = password.toString().trim();
+    const digitsOnly = cleanPhone.replace(/\D/g, '');
+
+    let user = await User.findOne({ phone: cleanPhone }).populate('batchId').populate('packageId');
+    if (!user && digitsOnly) {
+      user = await User.findOne({ phone: digitsOnly }).populate('batchId').populate('packageId');
+    }
+    if (!user && digitsOnly) {
+      user = await User.findOne({ phone: { $regex: digitsOnly, $options: 'i' } }).populate('batchId').populate('packageId');
+    }
+
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const valid = await bcrypt.compare(cleanPassword, user.passwordHash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = signToken({ userId: user._id.toString() });
@@ -31,6 +42,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         phone: user.phone,
         role: user.role,
@@ -41,6 +53,10 @@ export default async function handler(req, res) {
         startDate: effectiveStartDate,
         batchName,
         batchId: user.batchId ? user.batchId._id : null,
+        packageId: user.packageId ? user.packageId._id : null,
+        packageName: user.packageId ? user.packageId.name : null,
+        packageItems: user.packageId ? user.packageId.items : [],
+        challengeStarted: user.batchId ? true : !!user.challengeStarted,
       },
       token,
     });

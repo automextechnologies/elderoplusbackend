@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       if (!user) return res.status(404).json({ error: 'Customer not found' });
 
       // Calculate the correct date for this day number relative to the challenge start date
-      const start = new Date(user.batchId ? user.batchId.startDate : user.startDate);
+      const start = new Date((user.batchId ? user.batchId.startDate : user.startDate) || Date.now());
       const logDate = new Date(start);
       logDate.setDate(start.getDate() + (dayNumber - 1));
       const dateStr = logDate.toISOString().split('T')[0];

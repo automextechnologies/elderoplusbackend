@@ -12,25 +12,46 @@ export default async function handler(req, res) {
     const { userId } = verifyToken(req);
 
     if (req.method === 'GET') {
-      const user = await User.findById(userId).populate('batchId').select('-passwordHash -pushSubscription');
+      const user = await User.findById(userId)
+        .populate('batchId')
+        .populate('packageId')
+        .select('-passwordHash -pushSubscription');
       if (!user) return res.status(404).json({ error: 'User not found' });
       const userObj = user.toObject();
       userObj.startDate = user.batchId ? user.batchId.startDate : user.startDate;
       userObj.batchName = user.batchId ? user.batchId.name : null;
+      userObj.packageName = user.packageId ? user.packageId.name : null;
+      userObj.packageItems = user.packageId ? user.packageId.items : [];
+      userObj.challengeStarted = user.batchId ? true : !!user.challengeStarted;
       return res.status(200).json({ user: userObj });
     }
 
     if (req.method === 'PUT') {
-      const { name, age, gender, heightCm, weightKg } = req.body;
+      const { name, age, gender, heightCm, weightKg, action } = req.body;
+      
+      let updateFields = {};
+      if (action === 'startChallenge') {
+        updateFields = {
+          challengeStarted: true,
+          startDate: new Date()
+        };
+      } else {
+        updateFields = { name, age, gender, heightCm, weightKg };
+      }
+
       const updated = await User.findByIdAndUpdate(
         userId,
-        { $set: { name, age, gender, heightCm, weightKg } },
+        { $set: updateFields },
         { new: true }
-      ).populate('batchId').select('-passwordHash -pushSubscription');
+      ).populate('batchId').populate('packageId').select('-passwordHash -pushSubscription');
+      
       if (!updated) return res.status(404).json({ error: 'User not found' });
       const userObj = updated.toObject();
       userObj.startDate = updated.batchId ? updated.batchId.startDate : updated.startDate;
       userObj.batchName = updated.batchId ? updated.batchId.name : null;
+      userObj.packageName = updated.packageId ? updated.packageId.name : null;
+      userObj.packageItems = updated.packageId ? updated.packageId.items : [];
+      userObj.challengeStarted = updated.batchId ? true : !!updated.challengeStarted;
       return res.status(200).json({ user: userObj });
     }
 

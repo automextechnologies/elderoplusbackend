@@ -46,9 +46,18 @@ import tasksLogHandler from './api/tasks/log.js';
 import tasksIdHandler from './api/tasks/[id].js';
 import userProfileHandler from './api/user/profile.js';
 import adminCustomersHandler from './api/admin/customers.js';
+import adminContactsHandler from './api/admin/contacts.js';
+import adminOnboardingHandler from './api/admin/onboarding.js';
 import adminBatchesHandler from './api/admin/batches.js';
 import adminCustomerTasksHandler from './api/admin/customer-tasks.js';
 import adminTestNotificationHandler from './api/admin/test-notification.js';
+import adminPipelineStagesHandler from './api/admin/pipeline-stages.js';
+import adminPipelinesHandler from './api/admin/pipelines.js';
+import adminTicketsHandler from './api/admin/tickets.js';
+import adminPackagesHandler from './api/admin/packages.js';
+import adminSalesRepsHandler from './api/admin/sales-reps.js';
+import adminPushConfigHandler from './api/admin/push-config.js';
+import adminSendInstantPushHandler from './api/admin/send-instant-push.js';
 import fcmSubscribeHandler from './api/notifications/fcm-subscribe.js';
 import fcmUnsubscribeHandler from './api/notifications/fcm-unsubscribe.js';
 import notificationsSubscribeHandler from './api/notifications/subscribe.js';
@@ -58,12 +67,14 @@ import { firebaseAdmin } from './api/_lib/firebase.js';
 
 import bcrypt from 'bcryptjs';
 import User from './api/_lib/models/User.js';
+import PipelineStage from './api/_lib/models/PipelineStage.js';
+import Package from './api/_lib/models/Package.js';
 
 async function seedDefaultUser() {
   try {
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      console.log('No users found in database. Seeding a default user...');
+    const defaultCustomer = await User.findOne({ phone: '1234567890' });
+    if (!defaultCustomer) {
+      console.log('No default customer found (phone 1234567890). Seeding default customer...');
       const passwordHash = await bcrypt.hash('password123', 10);
       await User.create({
         name: 'Eldro User',
@@ -91,19 +102,60 @@ async function seedDefaultUser() {
       });
       console.log('Default admin user seeded successfully (Phone: 9999999999, Password: admin123)');
     }
+
+    const stageCount = await PipelineStage.countDocuments();
+    if (stageCount === 0) {
+      console.log('No pipeline stages found. Seeding default stages...');
+      const defaultStages = [
+        { name: 'Documentation', order: 0 },
+        { name: 'Health Assessment', order: 1 },
+        { name: 'Care Plan Creation', order: 2 },
+        { name: 'Active Challenge', order: 3 },
+        { name: 'Review & Feedback', order: 4 },
+      ];
+      await PipelineStage.insertMany(defaultStages);
+      console.log('Default pipeline stages seeded successfully.');
+    }
+
+    // Seed default Tester Pack package
+    const testerPack = await Package.findOne({ name: 'Tester Pack' });
+    if (!testerPack) {
+      console.log('Seeding Tester Pack package...');
+      await Package.create({
+        name: 'Tester Pack',
+        description: 'Standard tester pack for testing pre-recorded classes and tasks.',
+        items: [
+          'Pre-recorded Yoga & Mobility Class',
+          'Pre-recorded Meditation & Mindfulness Class',
+          'Hydration Tracking (Target 2.5L)',
+          'Protein Intake Logger (Target 60g)',
+          'Sleep and Recovery Log'
+        ]
+      });
+      console.log('Tester Pack package seeded successfully.');
+    }
   } catch (err) {
     console.error('Error seeding default user/admin:', err);
   }
 }
 
 // Auth Routes
-app.post('/api/auth/login', vercelToExpress(loginHandler));
+app.all('/api/auth/login', vercelToExpress(loginHandler));
 
 // Admin Routes
 app.all('/api/admin/customers', vercelToExpress(adminCustomersHandler));
+app.all('/api/admin/contacts', vercelToExpress(adminContactsHandler));
+app.all('/api/admin/onboarding', vercelToExpress(adminOnboardingHandler));
 app.all('/api/admin/batches', vercelToExpress(adminBatchesHandler));
 app.all('/api/admin/customer-tasks', vercelToExpress(adminCustomerTasksHandler));
 app.all('/api/admin/test-notification', vercelToExpress(adminTestNotificationHandler));
+app.all('/api/admin/pipeline-stages', vercelToExpress(adminPipelineStagesHandler));
+app.all('/api/admin/pipelines', vercelToExpress(adminPipelinesHandler));
+app.all('/api/admin/tickets', vercelToExpress(adminTicketsHandler));
+app.all('/api/admin/packages', vercelToExpress(adminPackagesHandler));
+app.all('/api/admin/sales-reps', vercelToExpress(adminSalesRepsHandler));
+app.all('/api/admin/push-config', vercelToExpress(adminPushConfigHandler));
+app.all('/api/admin/send-instant-push', vercelToExpress(adminSendInstantPushHandler));
 
 // User Routes
 app.all('/api/user/profile', vercelToExpress(userProfileHandler));
@@ -117,17 +169,18 @@ app.all('/api/days/:dayNumber', (req, res) => {
 });
 
 // Tasks Routes
-app.post('/api/tasks/log', vercelToExpress(tasksLogHandler));
+app.all('/api/tasks/log', vercelToExpress(tasksLogHandler));
 app.all('/api/tasks/:id', (req, res) => {
   req.query = { ...req.query, id: req.params.id };
   return vercelToExpress(tasksIdHandler)(req, res);
 });
+
 // Notifications Routes
-app.post('/api/notifications/fcm-subscribe', vercelToExpress(fcmSubscribeHandler));
-app.post('/api/notifications/fcm-unsubscribe', vercelToExpress(fcmUnsubscribeHandler));
-app.post('/api/notifications/subscribe', vercelToExpress(notificationsSubscribeHandler));
-app.post('/api/notifications/unsubscribe', vercelToExpress(notificationsUnsubscribeHandler));
-app.post('/api/notifications/schedule-today', vercelToExpress(notificationsScheduleTodayHandler));
+app.all('/api/notifications/fcm-subscribe', vercelToExpress(fcmSubscribeHandler));
+app.all('/api/notifications/fcm-unsubscribe', vercelToExpress(fcmUnsubscribeHandler));
+app.all('/api/notifications/subscribe', vercelToExpress(notificationsSubscribeHandler));
+app.all('/api/notifications/unsubscribe', vercelToExpress(notificationsUnsubscribeHandler));
+app.all('/api/notifications/schedule-today', vercelToExpress(notificationsScheduleTodayHandler));
 
 
 // Default route for undefined endpoints
@@ -144,12 +197,23 @@ async function startWaterReminderScheduler() {
       const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
       // Find all users who have an FCM token AND either lastWaterNotificationSent is null or it was sent >= 2 hours ago
+      // If they are package/no-batch users, they must have challengeStarted set to true
       const users = await User.find({
         role: 'customer',
         fcmToken: { $ne: null },
-        $or: [
-          { lastWaterNotificationSent: null },
-          { lastWaterNotificationSent: { $lte: twoHoursAgo } }
+        $and: [
+          {
+            $or: [
+              { batchId: { $ne: null } },
+              { challengeStarted: true }
+            ]
+          },
+          {
+            $or: [
+              { lastWaterNotificationSent: null },
+              { lastWaterNotificationSent: { $lte: twoHoursAgo } }
+            ]
+          }
         ]
       });
 
