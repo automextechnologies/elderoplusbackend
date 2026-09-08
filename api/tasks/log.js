@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const { userId } = verifyToken(req);
-    const { dayNumber, taskId, amount, unit, completed, forDay, date } = req.body;
+    const { dayNumber, taskId, amount, unit, completed, date } = req.body;
 
     if (!dayNumber || !taskId) {
       return res.status(400).json({ error: 'dayNumber and taskId are required' });
@@ -27,20 +27,36 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const isStarted = user.batchId ? true : !!user.challengeStarted;
+    const start = user.batchId ? user.batchId.startDate : user.startDate;
+    const isStarted = user.batchId ? true : (user.challengeStarted || (start && new Date(start) <= new Date()));
     if (!isStarted) {
       return res.status(400).json({ error: 'Challenge has not started yet' });
     }
 
-    const start = user.batchId ? user.batchId.startDate : user.startDate;
     if (start) {
       const startDate = new Date(start);
-      const unlockDate = new Date(startDate);
-      unlockDate.setDate(unlockDate.getDate() + (dayNumber - 1));
-      unlockDate.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+      if (new Date() < startDate) {
+        return res.status(400).json({ error: 'Challenge has not started yet' });
+      }
+    }
 
-      if (new Date() < unlockDate) {
-        return res.status(400).json({ error: `Day ${dayNumber} is locked` });
+    // Sleep-based next-day unlock logic:
+    // Day d > 1 requires Day d - 1 Sleep Task to be completed
+    const numDay = Number(dayNumber);
+    if (numDay > 1) {
+      for (let prev = 1; prev < numDay; prev++) {
+        const prevSleep = await TaskLog.findOne({
+          userId,
+          dayNumber: prev,
+          taskId: 'sleep',
+          $or: [{ completed: true }, { amount: { $gt: 0 } }],
+        });
+        if (!prevSleep) {
+          return res.status(400).json({
+            error: "Complete your previous day's Sleep Task to unlock today's tasks.",
+          });
+        }
       }
     }
 
@@ -54,12 +70,8 @@ export default async function handler(req, res) {
       },
     };
 
-    if (taskId === 'sleep' && forDay) {
-      updateDoc.$set.forDay = forDay;
-    }
-
     const log = await TaskLog.findOneAndUpdate(
-      { userId, dayNumber, taskId },
+      { userId, dayNumber: numDay, taskId },
       updateDoc,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );

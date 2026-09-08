@@ -21,9 +21,21 @@ export default async function handler(req, res) {
 
     const logs = await TaskLog.find({ userId }).sort({ dayNumber: 1 });
 
-    const REQUIRED = ['yoga', 'meditation', 'water', 'protein'];
+    const REQUIRED = ['yoga', 'meditation', 'water', 'sleep'];
     const now = new Date();
     const startDate = new Date(user.batchId ? user.batchId.startDate : user.startDate);
+
+    const isChallengeStarted = startDate <= now;
+
+    function isDayAccessible(dNum) {
+      if (!isChallengeStarted) return false;
+      if (dNum === 1) return true;
+      for (let prev = 1; prev < dNum; prev++) {
+        const hasSleep = logs.some((l) => l.dayNumber === prev && l.taskId === 'sleep' && (l.completed || l.amount > 0));
+        if (!hasSleep) return false;
+      }
+      return true;
+    }
 
     const days = Array.from({ length: 30 }, (_, i) => {
       const dayNumber = i + 1;
@@ -31,7 +43,7 @@ export default async function handler(req, res) {
       unlockDate.setDate(unlockDate.getDate() + i);
       unlockDate.setHours(1, 0, 0, 0);
 
-      const isUnlocked = unlockDate <= now;
+      const isUnlocked = isDayAccessible(dayNumber);
       const isToday = isUnlocked && formatDate(unlockDate) === formatDate(now);
 
       const dayLogs = logs.filter((l) => l.dayNumber === dayNumber);

@@ -7,6 +7,7 @@ import { handleCors } from '../_lib/cors.js';
 
 const SCHEDULE = [
   { taskId: 'yoga',       hour: 6,  min: 30, msg: '🧘 Good morning! Time for your yoga session.' },
+  { taskId: 'yoga',       hour: 6,  min: 30, msg: '🧘 Good morning! Time for your yoga & fitness session.' },
   { taskId: 'meditation', hour: 7,  min: 0,  msg: '🧠 Start your day mindfully. Time to meditate.' },
   { taskId: 'sleep',      hour: 6,  min: 0,  msg: '🌅 Rise and shine! Wake up early to start your day with energy and log your sleep.' },
   { taskId: 'water',      hour: 8,  min: 0,  msg: '💧 Time to hydrate! Start your day with water.' },
@@ -17,9 +18,9 @@ const SCHEDULE = [
   { taskId: 'water',      hour: 18, min: 0,  msg: '💧 Evening hydration reminder. Almost there!' },
   { taskId: 'water',      hour: 20, min: 0,  msg: '💧 Last water reminder for today. Stay hydrated!' },
   { taskId: 'water',      hour: 22, min: 0,  msg: '💧 Take a few sips of water before bed to stay hydrated through the night.' },
-  { taskId: 'protein',    hour: 9,  min: 0,  msg: '🥩 Morning protein check. Make sure to include some protein in your breakfast!' },
-  { taskId: 'protein',    hour: 13, min: 30, msg: '🥩 Lunchtime protein reminder. Add some lean protein to your lunch!' },
-  { taskId: 'protein',    hour: 19, min: 30, msg: '🥩 Dinner protein reminder. Log your protein intake to reach your 60g goal today!' },
+  // { taskId: 'protein',    hour: 9,  min: 0,  msg: '🥩 Morning protein check. Make sure to include some protein in your breakfast!' },
+  // { taskId: 'protein',    hour: 13, min: 30, msg: '🥩 Lunchtime protein reminder. Add some lean protein to your lunch!' },
+  // { taskId: 'protein',    hour: 19, min: 30, msg: '🥩 Dinner protein reminder. Log your protein intake to reach your 60g goal today!' },
   { taskId: 'sleep',      hour: 22, min: 0,  msg: '😴 Time to wind down and prepare for bed. Sleep on time to wake up refreshed!' },
 ];
 
