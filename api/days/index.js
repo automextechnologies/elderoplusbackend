@@ -24,39 +24,49 @@ export default async function handler(req, res) {
     const REQUIRED = ['yoga', 'meditation', 'water', 'sleep'];
     const now = new Date();
     const startDate = new Date(user.batchId ? user.batchId.startDate : user.startDate);
+    startDate.setHours(0, 0, 0, 0);
 
     const isChallengeStarted = startDate <= now;
 
+    function getDayUnlockTime(dNum) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + (dNum - 1));
+      if (dNum === 1) {
+        return d;
+      }
+      d.setHours(3, 0, 0, 0);
+      return d;
+    }
+
     function isDayAccessible(dNum) {
       if (!isChallengeStarted) return false;
-      if (dNum === 1) return true;
-      for (let prev = 1; prev < dNum; prev++) {
-        const hasSleep = logs.some((l) => l.dayNumber === prev && l.taskId === 'sleep' && (l.completed || l.amount > 0));
-        if (!hasSleep) return false;
-      }
-      return true;
+      const unlockTime = getDayUnlockTime(dNum);
+      return now >= unlockTime;
     }
 
     const days = Array.from({ length: 30 }, (_, i) => {
       const dayNumber = i + 1;
-      const unlockDate = new Date(startDate);
-      unlockDate.setDate(unlockDate.getDate() + i);
-      unlockDate.setHours(1, 0, 0, 0);
+      const dayUnlockTime = getDayUnlockTime(dayNumber);
+
+      const dayDate = new Date(startDate);
+      dayDate.setDate(dayDate.getDate() + i);
 
       const isUnlocked = isDayAccessible(dayNumber);
-      const isToday = isUnlocked && formatDate(unlockDate) === formatDate(now);
+      const isToday = isUnlocked && formatDate(dayDate) === formatDate(now);
 
       const dayLogs = logs.filter((l) => l.dayNumber === dayNumber);
-      const completedTasks = dayLogs.filter((l) => l.completed).map((l) => l.taskId);
+      const completedTasks = dayLogs.filter((l) => l.completed || l.amount > 0).map((l) => l.taskId);
       const requiredDone = REQUIRED.filter((t) => completedTasks.includes(t)).length;
       const allDone = REQUIRED.every((t) => completedTasks.includes(t));
 
       let status = 'locked';
       if (isUnlocked) {
-        if (isToday) {
-          status = allDone ? 'complete' : requiredDone > 0 ? 'partial' : 'today';
-        } else if (unlockDate < now) {
-          status = allDone ? 'complete' : requiredDone > 0 ? 'partial' : 'missed';
+        if (allDone) {
+          status = 'complete';
+        } else if (isToday) {
+          status = requiredDone > 0 ? 'partial' : 'today';
+        } else if (dayUnlockTime < now) {
+          status = requiredDone > 0 ? 'partial' : 'missed';
         } else {
           status = 'unlocked';
         }
@@ -64,7 +74,7 @@ export default async function handler(req, res) {
 
       return {
         dayNumber,
-        unlockDate: unlockDate.toISOString(),
+        unlockDate: dayUnlockTime.toISOString(),
         status,
         tasksCompleted: completedTasks.length,
         requiredDone,
