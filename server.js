@@ -58,11 +58,15 @@ import adminPackagesHandler from './api/admin/packages.js';
 import adminSalesRepsHandler from './api/admin/sales-reps.js';
 import adminPushConfigHandler from './api/admin/push-config.js';
 import adminSendInstantPushHandler from './api/admin/send-instant-push.js';
+import adminMeetingsHandler from './api/admin/meetings.js';
+import userLiveSessionHandler from './api/user/live-session.js';
 import fcmSubscribeHandler from './api/notifications/fcm-subscribe.js';
 import fcmUnsubscribeHandler from './api/notifications/fcm-unsubscribe.js';
 import notificationsSubscribeHandler from './api/notifications/subscribe.js';
 import notificationsUnsubscribeHandler from './api/notifications/unsubscribe.js';
 import notificationsScheduleTodayHandler from './api/notifications/schedule-today.js';
+import trainingCategoriesHandler from './api/training/categories.js';
+import trainingVideosHandler from './api/training/videos.js';
 import { firebaseAdmin } from './api/_lib/firebase.js';
 
 import bcrypt from 'bcryptjs';
@@ -156,9 +160,11 @@ app.all('/api/admin/packages', vercelToExpress(adminPackagesHandler));
 app.all('/api/admin/sales-reps', vercelToExpress(adminSalesRepsHandler));
 app.all('/api/admin/push-config', vercelToExpress(adminPushConfigHandler));
 app.all('/api/admin/send-instant-push', vercelToExpress(adminSendInstantPushHandler));
+app.all('/api/admin/meetings', vercelToExpress(adminMeetingsHandler));
 
 // User Routes
 app.all('/api/user/profile', vercelToExpress(userProfileHandler));
+app.all('/api/user/live-session', vercelToExpress(userLiveSessionHandler));
 
 // Days Routes
 app.all('/api/days', vercelToExpress(daysIndexHandler));
@@ -182,6 +188,9 @@ app.all('/api/notifications/subscribe', vercelToExpress(notificationsSubscribeHa
 app.all('/api/notifications/unsubscribe', vercelToExpress(notificationsUnsubscribeHandler));
 app.all('/api/notifications/schedule-today', vercelToExpress(notificationsScheduleTodayHandler));
 
+// Training Videos & Categories Routes
+app.all('/api/training/categories', vercelToExpress(trainingCategoriesHandler));
+app.all('/api/training/videos', vercelToExpress(trainingVideosHandler));
 
 // Default route for undefined endpoints
 app.use((req, res) => {

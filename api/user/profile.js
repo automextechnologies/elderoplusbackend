@@ -1,5 +1,7 @@
 import { connectDB } from '../_lib/mongodb.js';
 import User from '../_lib/models/User.js';
+import Batch from '../_lib/models/Batch.js';
+import Package from '../_lib/models/Package.js';
 import { verifyToken } from '../_lib/auth.js';
 import { handleCors } from '../_lib/cors.js';
 
@@ -20,6 +22,15 @@ export default async function handler(req, res) {
       const userObj = user.toObject();
       userObj.startDate = user.batchId ? user.batchId.startDate : user.startDate;
       userObj.batchName = user.batchId ? user.batchId.name : null;
+      userObj.batch = user.batchId ? {
+        _id: user.batchId._id,
+        name: user.batchId.name,
+        startDate: user.batchId.startDate,
+        meetingName: user.batchId.meetingName || 'Daily Live Session',
+        meetingLink: user.batchId.meetingLink || '',
+        meetingTime: user.batchId.meetingTime || '09:00',
+        meetingDuration: user.batchId.meetingDuration || 60,
+      } : null;
       userObj.packageName = user.packageId ? user.packageId.name : null;
       userObj.packageItems = user.packageId ? user.packageId.items : [];
       userObj.challengeStarted = user.batchId ? true : !!user.challengeStarted;
@@ -49,6 +60,15 @@ export default async function handler(req, res) {
       const userObj = updated.toObject();
       userObj.startDate = updated.batchId ? updated.batchId.startDate : updated.startDate;
       userObj.batchName = updated.batchId ? updated.batchId.name : null;
+      userObj.batch = updated.batchId ? {
+        _id: updated.batchId._id,
+        name: updated.batchId.name,
+        startDate: updated.batchId.startDate,
+        meetingName: updated.batchId.meetingName || 'Daily Live Session',
+        meetingLink: updated.batchId.meetingLink || '',
+        meetingTime: updated.batchId.meetingTime || '09:00',
+        meetingDuration: updated.batchId.meetingDuration || 60,
+      } : null;
       userObj.packageName = updated.packageId ? updated.packageId.name : null;
       userObj.packageItems = updated.packageId ? updated.packageId.items : [];
       userObj.challengeStarted = updated.batchId ? true : !!updated.challengeStarted;
