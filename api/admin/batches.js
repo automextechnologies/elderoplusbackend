@@ -74,6 +74,33 @@ export default async function handler(req, res) {
       return res.status(200).json({ batch: { ...batchToUpdate.toObject(), customerCount: count } });
     }
 
+    if (req.method === 'DELETE') {
+      const id = req.query?.id || req.body?.id;
+      if (!id) {
+        return res.status(400).json({ error: 'Batch ID is required' });
+      }
+
+      const batchToDelete = await Batch.findById(id);
+      if (!batchToDelete) {
+        return res.status(404).json({ error: 'Batch not found' });
+      }
+
+      // Enforce condition: only batches without any customer can be deleted
+      const customerCount = await User.countDocuments({ batchId: batchToDelete._id, role: 'customer' });
+      if (customerCount > 0) {
+        return res.status(400).json({
+          error: `Cannot delete batch "${batchToDelete.name}". It currently has ${customerCount} assigned customer(s). Only batches without any customers can be deleted.`
+        });
+      }
+
+      await Batch.deleteOne({ _id: batchToDelete._id });
+
+      return res.status(200).json({
+        message: `Batch "${batchToDelete.name}" deleted successfully`,
+        deletedId: batchToDelete._id
+      });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     if (err.message === 'No token' || err.name === 'JsonWebTokenError') {

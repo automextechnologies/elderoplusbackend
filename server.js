@@ -244,8 +244,22 @@ async function startWaterReminderScheduler() {
               title: 'Water Intake Reminder',
               body: 'Time to drink water! Keep your hydration target on track.',
             },
+            webpush: {
+              notification: {
+                title: 'Water Intake Reminder',
+                body: 'Time to drink water! Keep your hydration target on track.',
+                icon: '/pwa-192x192.png',
+                badge: '/badge-72x72.png',
+              },
+              fcmOptions: {
+                link: '/'
+              }
+            },
             data: {
-              url: '/'
+              url: '/',
+              title: 'Water Intake Reminder',
+              body: 'Time to drink water! Keep your hydration target on track.',
+              tag: 'water-intake-reminder'
             },
             token: user.fcmToken,
           };

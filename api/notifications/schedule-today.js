@@ -3,6 +3,7 @@ import User from '../_lib/models/User.js';
 import TaskLog from '../_lib/models/TaskLog.js';
 import { verifyToken } from '../_lib/auth.js';
 import { sendPush } from '../_lib/webpush.js';
+import { firebaseAdmin } from '../_lib/firebase.js';
 import { handleCors } from '../_lib/cors.js';
 
 const SCHEDULE = [
@@ -18,9 +19,6 @@ const SCHEDULE = [
   { taskId: 'water',      hour: 18, min: 0,  msg: '💧 Evening hydration reminder. Almost there!' },
   { taskId: 'water',      hour: 20, min: 0,  msg: '💧 Last water reminder for today. Stay hydrated!' },
   { taskId: 'water',      hour: 22, min: 0,  msg: '💧 Take a few sips of water before bed to stay hydrated through the night.' },
-  // { taskId: 'protein',    hour: 9,  min: 0,  msg: '🥩 Morning protein check. Make sure to include some protein in your breakfast!' },
-  // { taskId: 'protein',    hour: 13, min: 30, msg: '🥩 Lunchtime protein reminder. Add some lean protein to your lunch!' },
-  // { taskId: 'protein',    hour: 19, min: 30, msg: '🥩 Dinner protein reminder. Log your protein intake to reach your 60g goal today!' },
   { taskId: 'sleep',      hour: 22, min: 0,  msg: '😴 Time to wind down and prepare for bed. Sleep on time to wake up refreshed!' },
 ];
 
@@ -44,7 +42,7 @@ export default async function handler(req, res) {
     const { userId } = verifyToken(req);
     const user = await User.findById(userId).populate('batchId');
 
-    if (!user?.pushSubscription) {
+    if (!user?.pushSubscription && !user?.fcmToken) {
       return res.status(200).json({ sent: 0, reason: 'no-subscription', futureReminders: [] });
     }
 
@@ -100,20 +98,69 @@ export default async function handler(req, res) {
       if (sent.has(key)) continue;
       sent.add(key);
 
-      const result = await sendPush(user.pushSubscription, {
+      const reminderPayload = {
         title: '30-Day Health Challenge',
         body: reminder.msg,
         icon: '/pwa-192x192.png',
         badge: '/badge-72x72.png',
         tag: `${reminder.taskId}-${todayDate}`,
         data: { taskId: reminder.taskId, url: '/' },
-      });
+      };
 
-      sentCount++;
+      let delivered = false;
 
-      if (result.expired) {
-        await User.findByIdAndUpdate(userId, { pushSubscription: null });
-        break;
+      if (user.fcmToken && firebaseAdmin) {
+        try {
+          await firebaseAdmin.messaging().send({
+            token: user.fcmToken,
+            notification: {
+              title: reminderPayload.title,
+              body: reminderPayload.body,
+            },
+            webpush: {
+              notification: {
+                title: reminderPayload.title,
+                body: reminderPayload.body,
+                icon: reminderPayload.icon,
+                badge: reminderPayload.badge,
+              },
+              fcmOptions: {
+                link: '/'
+              }
+            },
+            data: {
+              taskId: reminder.taskId,
+              url: '/'
+            }
+          });
+          delivered = true;
+        } catch (fcmErr) {
+          if (
+            fcmErr.code === 'messaging/invalid-registration-token' ||
+            fcmErr.code === 'messaging/registration-token-not-registered'
+          ) {
+            await User.findByIdAndUpdate(userId, { fcmToken: null });
+          }
+        }
+      }
+
+      if (user.pushSubscription) {
+        try {
+          const result = await sendPush(user.pushSubscription, reminderPayload);
+          if (result.success) {
+            delivered = true;
+          } else if (result.expired) {
+            await User.findByIdAndUpdate(userId, { pushSubscription: null });
+          }
+        } catch (e) {
+          if (e.statusCode === 410 || e.statusCode === 404) {
+            await User.findByIdAndUpdate(userId, { pushSubscription: null });
+          }
+        }
+      }
+
+      if (delivered) {
+        sentCount++;
       }
     }
 

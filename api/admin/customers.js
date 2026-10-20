@@ -6,6 +6,7 @@ import Pipeline from '../_lib/models/Pipeline.js';
 import TaskLog from '../_lib/models/TaskLog.js';
 import Package from '../_lib/models/Package.js';
 import SalesRep from '../_lib/models/SalesRep.js';
+import EnquiryTicket from '../_lib/models/EnquiryTicket.js';
 import bcrypt from 'bcryptjs';
 import { verifyToken } from '../_lib/auth.js';
 import { handleCors } from '../_lib/cors.js';
@@ -292,25 +293,53 @@ export default async function handler(req, res) {
       return res.status(200).json({ customer: updatedObj });
     }
 
-    // 5. Handle DELETE (Delete customer and their logs)
+    // 5. Handle DELETE (Delete single or bulk customers and their logs)
     if (req.method === 'DELETE') {
-      const { id } = req.query;
+      let targetIds = [];
 
-      if (!id) {
-        return res.status(400).json({ error: 'Customer ID is required' });
+      if (Array.isArray(req.body?.ids) && req.body.ids.length > 0) {
+        targetIds = req.body.ids;
+      } else if (typeof req.query?.ids === 'string' && req.query.ids.trim()) {
+        targetIds = req.query.ids.split(',').map((s) => s.trim()).filter(Boolean);
+      } else if (req.query?.id) {
+        targetIds = [req.query.id];
+      } else if (req.body?.id) {
+        targetIds = [req.body.id];
       }
 
-      const customerToDelete = await User.findById(id);
-      if (!customerToDelete || customerToDelete.role !== 'customer') {
-        return res.status(404).json({ error: 'Customer not found' });
+      if (targetIds.length === 0) {
+        return res.status(400).json({ error: 'Customer ID(s) required' });
       }
+
+      // Find all matching customers (strictly role: 'customer' to protect admin accounts)
+      const customersToDelete = await User.find({
+        _id: { $in: targetIds },
+        role: 'customer',
+      }).select('_id name');
+
+      if (customersToDelete.length === 0) {
+        return res.status(404).json({ error: 'Customer(s) not found' });
+      }
+
+      const idsToDelete = customersToDelete.map((c) => c._id);
 
       // Delete user's task logs first
-      await TaskLog.deleteMany({ userId: customerToDelete._id });
-      // Delete the customer
-      await User.deleteOne({ _id: customerToDelete._id });
+      await TaskLog.deleteMany({ userId: { $in: idsToDelete } });
 
-      return res.status(200).json({ message: 'Customer and all associated logs deleted successfully' });
+      // Clean up customer reference in EnquiryTickets if any exist
+      await EnquiryTicket.updateMany(
+        { 'customerDetails.userId': { $in: idsToDelete } },
+        { $set: { 'customerDetails.userId': null } }
+      );
+
+      // Delete the customers
+      const deleteResult = await User.deleteMany({ _id: { $in: idsToDelete } });
+
+      return res.status(200).json({
+        message: `${deleteResult.deletedCount} customer(s) and all associated logs deleted successfully`,
+        deletedCount: deleteResult.deletedCount,
+        deletedIds: idsToDelete,
+      });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

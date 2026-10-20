@@ -73,9 +73,22 @@ export default async function handler(req, res) {
               title: payload.title,
               body: payload.body,
             },
+            webpush: {
+              notification: {
+                title: payload.title,
+                body: payload.body,
+                icon: payload.icon,
+                badge: payload.badge,
+              },
+              fcmOptions: {
+                link: payload.data.url
+              }
+            },
             data: {
-              url: payload.data.url,
-              category: payload.data.category
+              url: String(payload.data.url || '/'),
+              category: String(payload.data.category || 'general'),
+              title: String(payload.title),
+              body: String(payload.body)
             }
           });
           sentToUser = true;
